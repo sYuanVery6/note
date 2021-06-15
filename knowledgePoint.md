@@ -313,10 +313,40 @@
 
 10. `线程池` **创建线程池的方式有几种？**
 
-> * 通过线程池工具类Executors创建特定参数的线程池
+> * 通过线程池工具类Executors创建特定参数的线程池，不推荐使用，可能会引起OOM，阻塞队列接近无限
 > * 通过new ThreadPoolExecutor(...)自定义创建
 >
-> TODO：线程池参数详解
+> ##### 线程池参数详解：
+>
+> ```java
+> public ThreadPoolExecutor(int corePoolSize,
+>                               int maximumPoolSize,
+>                               long keepAliveTime,
+>                               TimeUnit unit,
+>                               BlockingQueue<Runnable> workQueue,
+>                               ThreadFactory threadFactory,
+>                               RejectedExecutionHandler handler)
+> ```
+>
+> * corePoolSize:线程池中的常驻核心线程数，线程中的线程数目达到corePoolSize后，就会把任务放到缓存队列。（银行的受理窗口数）
+> * maximumPoolSize:线程池的最大线程数，此值必须大于等于1（容量）（最大窗口上限，加班窗口）
+> * keepAliveTime:多余的空闲线程的存活时间，当前线程池数量超过corePoolSize时，当空闲时间达到keepAliveTime时多余的空间线程被销毁，直到只剩下corePoolSize个线程为止
+> * unit:keepAliveTime的时间单位
+> * workQueue:阻塞队列，类似于银行里面的候客区，存放已经被提交但是未被执行的任务
+> * threadFactory:表示生成线程池中工作线程的线程工厂，用于创建线程，一般用默认即可（银行网点的logo/员工的制服，胸卡...）
+> * handler:拒绝策略，表示当队列满并且工作线程大于等于线程池最大线程数时，采用的策略
+>
+> ##### 使用线程池的优势
+>
+> 线程池主要控制运行的线程数量，处理过程中将任务放入队列，然后在线程创建后启动这些任务，如果线程数量超过了最大数量，超出数量的线程排队等候其他线程执行完毕，再从队列中取出任务再执行。
+>
+> 特点：线程用；控制最大并发数；管理线程
+>
+> ##### 线程池合理配置参数
+>
+> CPU密集型：CPU核数+1
+>
+> IO密集型：并不是一直执行任务，尽可能多配置线程，CPU核数*2
 
 11. `线程安全` **Java程序中怎么保证多线程的运行安全？**
 
@@ -335,4 +365,330 @@
 > * 重量级锁：轻量级锁执行在用户态，重量级锁执行在内核态，需要向CPU申请。每一个重量级锁下有一个队列，里面存放着被阻塞等待获取锁的线程，阻塞状态不消耗资源。
 >
 > ![img](https://i0.hdslb.com/bfs/article/ec9213ac3c1342d584fd12d09fda7afc52afb45f.jpg@1256w_698h_progressive.webp)
+
+13. `锁` `CAS` **CAS的理解**
+
+> * 基本概念
+>
+> CAS全称Conmpare And Swap；比较并且交换。是计算机科学中用来实现多线程同步的原子指令。
+>
+> * 运行原理
+>
+> 当一个线程对主存中的某个变量A（值为0）进行计算时，先从主存中拿到这个变量A，然后在该线程的私有内存中对变量A进行计算，计算之后，再去主存中拿到变量A，将之前拿到的变量A的值与第二次拿到的变量A的值进行计算。如果前后两次拿到的值相等，则将计算后的变量A的值更新到主存中的变量A中。如果不相等，则将新拿到的变量A重新进行计算。
+>
+> ![CAS运行机制](C:\Users\sYuan\AppData\Local\Temp\CAS运行机制.png)
+>
+> * ABA问题
+>
+> CAS可以有效的提示并发效率（不用锁），但是也会引起ABA问题。
+>
+> ABA问题：假设有两个线程T1和T2都要操作主存中的变量X，变量X的值为A，此时T1先获取到变量X，当T1在自己的私有内存中计算变量X值时，T2获取到变量X后将X的值更新为A并写回主存。然后T1将变量X的值计算成了B，此时T1通过CAS比较当前主存中变量X的值，但是此时主存中的变量X的值已经不是之前的A了，是一个新的A。T1比较后会将变量X（B）重新更新到主存中。
+>
+> 如何解决？在对象中额外增加一个变量（例如版本号）来标志对象是否有过变更。[乐观锁]
+
+14. `java关键字` `锁` `线程安全` Synchronized和volatile关键字及线程安全
+
+> ##### 线程安全
+>
+> 是指当多个线程同时读写一个共享资源并且没有任何同步措施时，导致出现脏数据或者不可预见的结果的问题
+>
+> ##### 共享变量的内存可见性
+>
+> java内存模型规定，将所有变量都放在主内存中，当线程使用变量时会把主存里面的变量复制到自己的工作空间（工作内存）中，线程读写变量时操作的是自己工作内存中的变量，操作完后再将变量值更新到主内存中。
+>
+> 内存不可见问题：当两个线程操作同一共享变量时，都会将变量放在自己的工作内存中处理，在将数据更新到主存中，会导致其他线程对新的数据不可见的问题。即内存不可见问题。
+>
+> 解决内存不可见问题：volatile关键字。
+>
+> ##### synchronized关键字
+>
+> synchronized是java提供的一种原子性内置锁，java的每个对象都可以把它当做一个同步锁来使用，这些java内置的使用者看不到的锁被称为内置锁，也叫监视器锁。拿到内部锁的线程会正常退出同步代码块，或者抛出异常后或者在同步代码快内调用了该内置锁资源的wait系方法时释放该锁资源。
+>
+> ##### synchronized缺点
+>
+> 由于java的线程是与操作系统的原生线程一一对应的，所以当阻塞一个线程时，需要从用户态切换到内核态执行阻塞操作，这是很耗时的操作，而synchronized的使用就会导致上下文去诶换。并且带来线程调度开销
+>
+> ##### synchronized内存语义
+>
+> synchronized的内存语义可以解决共享变量的内存可见性问题。进入synchronized块的内存语义是把synchronized块内使用到的变量从线程的工作内存中清除，这样在synchronized块内使用到该变量时就不会从线程的工作内存中获取，而是从主内存中获取。退出synchronized块的内存语义是把在synchronized块内对共享变量的修改刷新到主内存。其实这也是加锁和释放锁的语义
+>
+> ##### synchronized的实现过程
+>
+> 一段同步代码块在编译成字节码后，synchronized对应了monitor enter(开启监视器)和monitor exit(退出监视器)两条字节码指令，然后在jvm执行的过程中自动进行锁升级
+>
+> monitor enter 和monitor exit和机器指令lock comxchg相关
+>
+> ##### synchronized的几种实现方式
+>
+> ```java
+> public class SynchronizedTest {
+> 
+>     private Object object;
+> 
+>     public static synchronized void staticLock(){
+>         //给SynchronizedTest.Class上锁
+>     }
+> 
+>     public static void staticLock2(){
+>         synchronized (SynchronizedTest.class){
+>             //给SynchronizedTest.Class上锁
+>         }
+>     }
+> 
+>     public synchronized void objectLock(){
+>         //给该对象this上锁
+>     }
+> 
+>     public void objectLock2(){
+>         synchronized (this){
+>             //给该对象this上锁
+>         }
+>     }
+> 
+>     public void objectLock3(){
+>         synchronized (object){
+>             //给变量object上锁，只能修饰引用类型
+>         }
+>     }
+> 
+> }
+> ```
+>
+> ##### volatile关键字
+>
+> 使用锁的方式解决内存可见性问题太笨重。为了解决内存可见性问题，java还提供了一种弱形式的同步，那就是volatile关键字。这个关键字可以确保对一个变量的更新对其他线程马上可见。当一个变量被声明为volatile时，线程在写入变量时不会把值缓存在寄存器或者其他地方，而是会把值刷新回主内存。当其他线程读取该共享变量时，会从主内存获取最新值，而不是从当前的工作内存中获取
+>
+> ##### volatile内存语义
+>
+> 与synchronized有相似之处，写入volatile变量时等价于退出synchronized块的操作，而读取volatile变量时等价于进入synchronized的操作。并非在所有情况下synchronized与volatile是等价的，volatile只提供了内存可见性，并没有保证操作的原子性。
+>
+> > tips：原子性是指在一系列操作时，这些操作要么全部执行，要么全部不执行，不存在只执行一部分的情况，如果不能保证操作的原子性，name就会出现线程安全问题。
+
+15. `锁` `死锁` 什么是死锁？怎样避免死锁？
+
+> ##### 死锁的概念
+>
+> 死锁是指两个或者两个以上的进程在执行过程中，由于竞争资源或者由于彼此通信而造成的一种阻塞现象，若无外力作用，他们都将无法推进下去。
+>
+> ##### 死锁的必要条件
+>
+> * 互斥条件：进程对所分配的资源不允许其他进程进行访问。
+> * 请求和保持条件：进程在获取一定资源后，又向其他资源发出请求，但是资源可能被其他进程持有，而处于等待
+> * 不可剥夺条件：进程已经获得的资源在未完成使用之前，不可被剥夺，只能在使用完后自己释放
+> * 环路等待条件：是指进程发生死锁后，若干进程之间经常一种头尾相接的循环等待资源关系
+>
+> ##### 死锁的java代码实现
+>
+> ```java
+> package com.ayuan.daliy.therad;
+> 
+> /**
+>  * @author ayuan
+>  * @Title:
+>  * @Package
+>  * @Description:
+>  * @date 2021/6/15  20:51
+>  */
+> public class DeadThread {
+> 
+>     private Object o1 = new Object();
+> 
+>     private Object o2 = new Object();
+> 
+>     private Runnable r1 = new Runnable() {
+>         @Override
+>         public void run() {
+>             synchronized (o1){
+>                 try {
+>                     // 给r2预留获取o2对象的时间
+>                     Thread.sleep(1000);
+>                 } catch (InterruptedException e) {
+>                     e.printStackTrace();
+>                 }
+>                 synchronized (o2){
+>                     System.out.println("i am r1 ...");
+>                 }
+>             }
+>         }
+>     };
+> 
+>     private Runnable r2 = new Runnable() {
+>         @Override
+>         public void run() {
+>             synchronized (o2){
+>                 try {
+>                     // 给r1预留获取o1对象的时间
+>                     Thread.sleep(2000);
+>                 } catch (InterruptedException e) {
+>                     e.printStackTrace();
+>                 }
+>                 synchronized (o1){
+>                     System.out.println("i am r2 ...");
+>                 }
+>             }
+>         }
+>     };
+> 
+>     private void dead(){
+>         Thread t1 = new Thread(r1);
+>         Thread t2 = new Thread(r2);
+> 
+>         t1.start();
+>         t2.start();
+>     }
+> 
+>     public static void main(String[] args) {
+>         DeadThread deadThread = new DeadThread();
+>         deadThread.dead();
+>     }
+>     
+> }
+> ```
+>
+> ##### 检查死锁及解决方案
+>
+> * 通过jps -l查看当前计算机上执行的java程序进程pid
+>
+> ```bash
+> PS C:\Users\sYuan> jps -l
+> 20640 org.jetbrains.jps.cmdline.Launcher
+> 2720
+> 3316 sun.tools.jps.Jps
+> 5832 com.ayuan.daliy.therad.DeadThread
+> 6604 org.jetbrains.idea.maven.server.RemoteMavenServer
+> ```
+>
+> * 通过jstack [pid]查看该进程下的线程情况
+>
+> ```bash
+> PS C:\Users\sYuan> jstack 5832
+> 2021-06-15 20:59:10
+> Full thread dump Java HotSpot(TM) 64-Bit Server VM (25.221-b11 mixed mode):
+> 
+> "DestroyJavaVM" #14 prio=5 os_prio=0 tid=0x0000000002c83800 nid=0x1878 waiting on condition [0x0000000000000000]
+>    java.lang.Thread.State: RUNNABLE
+> 
+> "Thread-1" #13 prio=5 os_prio=0 tid=0x000000001e7c2800 nid=0x47d0 waiting for monitor entry [0x000000001f5cf000]
+>    java.lang.Thread.State: BLOCKED (on object monitor)
+>         at com.ayuan.daliy.therad.DeadThread$2.run(DeadThread.java:42)
+>         - waiting to lock <0x000000076ba7aaa8> (a java.lang.Object)
+>         - locked <0x000000076ba7aab8> (a java.lang.Object)
+>         at java.lang.Thread.run(Thread.java:748)
+> 
+> "Thread-0" #12 prio=5 os_prio=0 tid=0x000000001e7c1800 nid=0x2830 waiting for monitor entry [0x000000001f4cf000]
+>    java.lang.Thread.State: BLOCKED (on object monitor)
+>         at com.ayuan.daliy.therad.DeadThread$1.run(DeadThread.java:26)
+>         - waiting to lock <0x000000076ba7aab8> (a java.lang.Object)
+>         - locked <0x000000076ba7aaa8> (a java.lang.Object)
+>         at java.lang.Thread.run(Thread.java:748)
+> 
+> "Service Thread" #11 daemon prio=9 os_prio=0 tid=0x000000001e642800 nid=0x55d0 runnable [0x0000000000000000]
+>    java.lang.Thread.State: RUNNABLE
+> 
+> "C1 CompilerThread3" #10 daemon prio=9 os_prio=2 tid=0x000000001e622800 nid=0x4e98 waiting on condition [0x0000000000000000]
+>    java.lang.Thread.State: RUNNABLE
+> 
+> "C2 CompilerThread2" #9 daemon prio=9 os_prio=2 tid=0x000000001e620000 nid=0x468c waiting on condition [0x0000000000000000]
+>    java.lang.Thread.State: RUNNABLE
+> 
+> "C2 CompilerThread1" #8 daemon prio=9 os_prio=2 tid=0x000000001e61d000 nid=0x25f0 waiting on condition [0x0000000000000000]
+>    java.lang.Thread.State: RUNNABLE
+> 
+> "C2 CompilerThread0" #7 daemon prio=9 os_prio=2 tid=0x000000001e61b000 nid=0x29ac waiting on condition [0x0000000000000000]
+>    java.lang.Thread.State: RUNNABLE
+> 
+> "Monitor Ctrl-Break" #6 daemon prio=5 os_prio=0 tid=0x000000001e619800 nid=0x50b8 runnable [0x000000001edce000]
+>    java.lang.Thread.State: RUNNABLE
+>         at java.net.SocketInputStream.socketRead0(Native Method)
+>         at java.net.SocketInputStream.socketRead(SocketInputStream.java:116)
+>         at java.net.SocketInputStream.read(SocketInputStream.java:171)
+>         at java.net.SocketInputStream.read(SocketInputStream.java:141)
+>         at sun.nio.cs.StreamDecoder.readBytes(StreamDecoder.java:284)
+>         at sun.nio.cs.StreamDecoder.implRead(StreamDecoder.java:326)
+>         at sun.nio.cs.StreamDecoder.read(StreamDecoder.java:178)
+>         - locked <0x000000076bbc9d28> (a java.io.InputStreamReader)
+>         at java.io.InputStreamReader.read(InputStreamReader.java:184)
+>         at java.io.BufferedReader.fill(BufferedReader.java:161)
+>         at java.io.BufferedReader.readLine(BufferedReader.java:324)
+>         - locked <0x000000076bbc9d28> (a java.io.InputStreamReader)
+>         at java.io.BufferedReader.readLine(BufferedReader.java:389)
+>         at com.intellij.rt.execution.application.AppMainV2$1.run(AppMainV2.java:48)
+> 
+> "Attach Listener" #5 daemon prio=5 os_prio=2 tid=0x000000001e561000 nid=0x4934 waiting on condition [0x0000000000000000]
+>    java.lang.Thread.State: RUNNABLE
+> 
+> "Signal Dispatcher" #4 daemon prio=9 os_prio=2 tid=0x000000001e55f000 nid=0x3314 runnable [0x0000000000000000]
+>    java.lang.Thread.State: RUNNABLE
+> 
+> "Finalizer" #3 daemon prio=8 os_prio=1 tid=0x000000001c70e000 nid=0x5570 in Object.wait() [0x000000001eacf000]
+>    java.lang.Thread.State: WAITING (on object monitor)
+>         at java.lang.Object.wait(Native Method)
+>         - waiting on <0x000000076b908ed8> (a java.lang.ref.ReferenceQueue$Lock)
+>         at java.lang.ref.ReferenceQueue.remove(ReferenceQueue.java:144)
+>         - locked <0x000000076b908ed8> (a java.lang.ref.ReferenceQueue$Lock)
+>         at java.lang.ref.ReferenceQueue.remove(ReferenceQueue.java:165)
+>         at java.lang.ref.Finalizer$FinalizerThread.run(Finalizer.java:216)
+> 
+> "Reference Handler" #2 daemon prio=10 os_prio=2 tid=0x000000001e4f0800 nid=0x2e6c in Object.wait() [0x000000001e9cf000]
+>    java.lang.Thread.State: WAITING (on object monitor)
+>         at java.lang.Object.wait(Native Method)
+>         - waiting on <0x000000076b906c00> (a java.lang.ref.Reference$Lock)
+>         at java.lang.Object.wait(Object.java:502)
+>         at java.lang.ref.Reference.tryHandlePending(Reference.java:191)
+>         - locked <0x000000076b906c00> (a java.lang.ref.Reference$Lock)
+>         at java.lang.ref.Reference$ReferenceHandler.run(Reference.java:153)
+> 
+> "VM Thread" os_prio=2 tid=0x000000001c70a000 nid=0x26f4 runnable
+> 
+> "GC task thread#0 (ParallelGC)" os_prio=0 tid=0x0000000002c99800 nid=0x1d84 runnable
+> 
+> "GC task thread#1 (ParallelGC)" os_prio=0 tid=0x0000000002c9b000 nid=0x5508 runnable
+> 
+> "GC task thread#2 (ParallelGC)" os_prio=0 tid=0x0000000002c9c800 nid=0x2c50 runnable
+> 
+> "GC task thread#3 (ParallelGC)" os_prio=0 tid=0x0000000002c9e000 nid=0x8a0 runnable
+> 
+> "GC task thread#4 (ParallelGC)" os_prio=0 tid=0x0000000002ca1000 nid=0x3578 runnable
+> 
+> "GC task thread#5 (ParallelGC)" os_prio=0 tid=0x0000000002ca2800 nid=0x1eec runnable
+> 
+> "GC task thread#6 (ParallelGC)" os_prio=0 tid=0x0000000002ca5800 nid=0x35e4 runnable
+> 
+> "GC task thread#7 (ParallelGC)" os_prio=0 tid=0x0000000002ca6800 nid=0x4cc8 runnable
+> 
+> "VM Periodic Task Thread" os_prio=2 tid=0x000000001e6fe800 nid=0x3210 waiting on condition
+> 
+> JNI global references: 12
+> 
+> 
+> Found one Java-level deadlock:
+> =============================
+> "Thread-1":
+>   waiting to lock monitor 0x0000000002d7e618 (object 0x000000076ba7aaa8, a java.lang.Object),
+>   which is held by "Thread-0"
+> "Thread-0":
+>   waiting to lock monitor 0x0000000002d7d228 (object 0x000000076ba7aab8, a java.lang.Object),
+>   which is held by "Thread-1"
+> 
+> Java stack information for the threads listed above:
+> ===================================================
+> "Thread-1":
+>         at com.ayuan.daliy.therad.DeadThread$2.run(DeadThread.java:42)
+>         - waiting to lock <0x000000076ba7aaa8> (a java.lang.Object)
+>         - locked <0x000000076ba7aab8> (a java.lang.Object)
+>         at java.lang.Thread.run(Thread.java:748)
+> "Thread-0":
+>         at com.ayuan.daliy.therad.DeadThread$1.run(DeadThread.java:26)
+>         - waiting to lock <0x000000076ba7aab8> (a java.lang.Object)
+>         - locked <0x000000076ba7aaa8> (a java.lang.Object)
+>         at java.lang.Thread.run(Thread.java:748)
+> 
+> Found 1 deadlock.
+> ```
+>
+> ##### 避免死锁
+>
+> 在系统设计上注意避免死锁的必要条件成立，也要防止进程处于等待状态的情况下占用资源。
+
+
 
