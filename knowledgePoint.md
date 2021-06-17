@@ -386,7 +386,7 @@
 >
 > 如何解决？在对象中额外增加一个变量（例如版本号）来标志对象是否有过变更。[乐观锁]
 
-14. `java关键字` `锁` `线程安全` Synchronized和volatile关键字及线程安全
+14. `java关键字` `锁` `线程安全` **Synchronized和volatile关键字及线程安全**
 
 > ##### 线程安全
 >
@@ -464,7 +464,7 @@
 >
 > > tips：原子性是指在一系列操作时，这些操作要么全部执行，要么全部不执行，不存在只执行一部分的情况，如果不能保证操作的原子性，name就会出现线程安全问题。
 
-15. `锁` `死锁` 什么是死锁？怎样避免死锁？
+15. `锁` `死锁` **什么是死锁？怎样避免死锁？**
 
 > ##### 死锁的概念
 >
@@ -690,7 +690,7 @@
 >
 > 在系统设计上注意避免死锁的必要条件成立，也要防止进程处于等待状态的情况下占用资源。
 
-16. `锁` `synchronized` `Lock` Lock和synchronized的区别？
+16. `锁` `synchronized` `Lock` **Lock和synchronized的区别？**
 
 > | 区别点   | synchronized                                                 | Lock                                                         |
 > | -------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
@@ -701,13 +701,13 @@
 > | 锁类型   | 可重入 不可中断 非公平                                       | 可重入 可判断 可公平                                         |
 > | 性能     | 少量同步                                                     | 大量同步                                                     |
 
-17. `原子类` `atomic` 说一下atomic的原理
+17. `原子类` `atomic` **说一下atomic的原理**
 
 > Atomic包中的类基本的特性就是在多线程环境下，当有多个线程同时对单个（包括基本类型和引用类型）变量进行操作时，具有排他性，即当多个线程同时对该变量的值进行更新时，仅有一个线程能成功，而未成功的线程可以像自旋锁一样，继续尝试，一直等到执行成功
 >
 > Atomic系列的类中的核心方法都会调用unsafe类中的几个本地方法。我们需要先知道一个东西就是Unsafe类，全名为sun.misc.Unsafe，这个类包含了大量的对C代码的操作，包括很多直接内存分配以及原子操作的调用，而它之所以标记为非安全的，是告诉你这个里面大量的方法调用都会存在安全隐患，需要小心使用，否则会导致严重的后果，例如在通过unsafe分配内存的时候，如果自己指定某些区域可能会导致一些类似C++一样的指针越界到其他线程的问题
 
-18. `锁` 锁的种类？
+18. `锁` **锁的种类？**
 
 > ##### 乐观锁与悲观锁
 >
@@ -747,4 +747,472 @@
 > ##### 自旋锁
 >
 > 自旋锁则是，当前线程在获取锁时，如果发现锁已经被其他线程占有，他不会马上来阻塞自己，在不放弃CPU使用权的情况下，多次尝试获取，很有可能在后面几次尝试中其他线程已经释放了锁
+
+### Java Collection
+
+java集合，封装了一些常用的数据结构用于存储对象，是日常开发中最常使用的工具
+
+![img](https://images2015.cnblogs.com/blog/595137/201511/595137-20151126193134202-1199713105.png)
+
+------
+
+1. `Collection` **常用的集合**
+
+> * List列表：有序，可重复
+> * Set集合：无序，不可重复
+> * Map映射表：存储键值对，键不可重复，值可重复
+
+2. `Collection` `List` **List常用的具体实现类**
+
+> ##### ArrayList
+>
+> * 底层实现：数组
+>
+> * 特点：读取效率高，插入或者删除时引起扩容会效率变慢
+>
+>   ```java
+>   // 插入元素
+>   public void add(int index, E element) { 
+>       //检查索引是否合法 
+>       rangeCheckForAdd(index); 
+>       //判断是否扩容 
+>       ensureCapacityInternal(size + 1); 
+>       // Increments modCount!! 
+>       //native方法，将一个数组的0到index复制到一个新数组，索引区间为index+1到length-1也复制到一个新的数组。执行完后将新数组指向原数组对象。 
+>       System.arraycopy(elementData, index, elementData, index + 1,size - index); 
+>       //执行完arraycopy方法后，数组的index位置为空缺，将index位置赋值 
+>       elementData[index] = element; size++; 
+>   }
+>   ```
+>
+>   ```java
+>   // 删除
+>   public E remove(int index) {    
+>       rangeCheck(index);    
+>       modCount++;    
+>       E oldValue = elementData(index);    
+>       int numMoved = size - index - 1;    
+>       if (numMoved > 0)        
+>           System.arraycopy(elementData, index+1, elementData, index,numMoved);    
+>       elementData[--size] = null; 
+>       // clear to let GC do its work    
+>       return oldValue; 
+>   }
+>   ```
+>
+> * 扩容机制：
+>
+>   创建一个1.5倍长度的数组，然后利用Array.copyOf方法把旧数组的值全部复制到新数组中，在把内部的数组成员指向新创建的数组
+>
+>   ```java
+>   private static final int MAX_ARRAY_SIZE = Integer.MAX_VALUE - 8; 
+>   @param minCapacity： 插入当前元素后List的size属性 
+>       private void grow(int minCapacity) {    
+>       // overflow-conscious code    
+>       int oldCapacity = elementData.length;   
+>       //计算扩容后新数组的长度（原数组长度的1.5倍） 
+>       int newCapacity = oldCapacity + (oldCapacity >> 1);    
+>       if (newCapacity - minCapacity < 0)        
+>           newCapacity = minCapacity;    
+>       if (newCapacity - MAX_ARRAY_SIZE > 0)   
+>           //当新扩容的数组长度超过2,147,483,647时（2的15次方减1），新数组的长度为2,147,483,647 
+>           newCapacity = hugeCapacity(minCapacity);    
+>       // minCapacity is usually close to size, so this is a win:    
+>       elementData = Arrays.copyOf(elementData, newCapacity); 
+>   } 
+>   private static int hugeCapacity(int minCapacity) {    
+>       if (minCapacity < 0) 
+>           // overflow        
+>           throw new OutOfMemoryError();  
+>       return (minCapacity > MAX_ARRAY_SIZE) ? Integer.MAX_VALUE : MAX_ARRAY_SIZE; 
+>   }
+>   ```
+>
+>   
+>
+> * 适用场景：读多写少
+>
+> ##### LinkedList
+>
+> * 底层实现：链表，基于LinkedList的内部类Node用来存储每一个节点的元素和前后节点的元素的引用地址
+>
+>   ```java
+>   private static class Node<E> { 
+>       //节点元素 
+>       E item;    
+>       //前一个节点 
+>       Node<E> next;  
+>       //后一个节点 
+>       Node<E> prev;    
+>       Node(Node<E> prev, E element, Node<E> next) {        
+>           this.item = element;        
+>           this.next = next;        
+>           this.prev = prev;    
+>       } 
+>   }
+>   ```
+>
+> * 特点：比较高数组元素的插入和删除效率，但是查询操作比较慢
+>
+> * 适用场景：读少写多
+>
+> ##### ArrayList与LinkedList对比
+>
+> * ArrayList底层由数组实现，能通过索引下标直接获取元素，无需遍历整个集合。LinkedList底层由链表实现，通过索引查找指定元素时，需要遍历链表，直到找到为止
+> * ArrayList每当数组容量被填满的时候就需要扩容，扩容的过程产生很大的消耗，随机插入或者删除时，ArrayList会将插入位置后的元素索引加1，删除时减1。而LinkedList因为基于链表实现，随机插入和删除元素只要改变前后的指针就可以实现
+>
+> ##### Vector与ArrayList对比
+>
+> 相同点：
+>
+> * 底层都是基于数组实现，相当于一种动态数组
+> * 都继承了Collection接口，都是有序集合
+>
+> 不同点：
+>
+> * 同步性：Vector是线程安全的，它的方法由synchronized关键字修饰，ArrayList是线程不安全的
+> * 数组增长：Vector扩容时，默认增长为原数组长度的两倍，ArrayList为原来的1.5倍，Vector可以设置增长空间的大小，而ArrayList不可以设置
+
+3. `Collection` `Map` **Map的具体实现类**
+
+> ##### HashMap
+>
+> * 底层实现
+>
+>   * 1.7：数组+链表
+>   * 1.8：数组+链表+红黑树
+>
+> * HashMap如何解决Hash冲突
+>
+>   * 使用put方法向HashMap里面放元素时，会先计算key的hashcode，在通过putVal方法插入map
+>
+>     ```java
+>     public V put(K key, V value) {    
+>         //将元素通过putVal方法插入到map 
+>         return putVal(hash(key), key, value, false, true); 
+>     } 
+>     // 计算要插入的key的Hash值 
+>     static final int hash(Object key) {    
+>         int h;    
+>         return (key == null) ? 0 : (h = key.hashCode()) ^ (h >>> 16); 
+>     }
+>     ```
+>
+>   * putVal将元素插入map的逻辑
+>
+>     ```java
+>     // map底层用来存储元素的数组
+>     transient Node<K,V>[] table;
+>         
+>     /** * Implements Map.put and related methods. 
+>     * 
+>     * @param hash hash for key 
+>     * @param key the key 
+>     * @param value the value to put 
+>     * @param onlyIfAbsent if true, don't change existing value 如果为真，则不要更改现有值
+>     * @param evict if false, the table is in creation mode. 如果为false，则表处于创建模式
+>     * @return previous value, or null if none */
+>     final V putVal(int hash, K key, V value, boolean onlyIfAbsent, boolean evict) {  
+>             
+>         Node<K,V>[] tab; 
+>         Node<K,V> p;
+>         int n, i;
+>             
+>         //判断table为空或者数组长度为0，将tab和n赋值（底层数组和数组长度）
+>         if ((tab = table) == null || (n = tab.length) == 0)
+>             //如果为空，则通过resize()方法为数组分配默认容量
+>             n = (tab = resize()).length;
+>             //判断数组中的hash位置的元素是否为null
+>         if ((p = tab[i = (n - 1) & hash]) == null)
+>             //如果数组中的hash位置的元素为Null，创建一个node对象放到数组
+>             tab[i] = newNode(hash, key, value, null);
+>         //如果数组不为空且数组中的hash位置元素不是Null,这时候向链表插入元素
+>         else {        
+>             Node<K,V> e; 
+>             K k; 
+>             //判断数组中的hash位置元素p的key与hash值与要插入的元素是否相等，相等的话，将数组中的hash位置赋值给e；顺便将k赋值
+>             //这里就是判断新插入的元素的key是否存在于map中
+>             if (p.hash == hash && ((k = p.key) == key || (key != null && key.equals(k))))            
+>                 e = p;
+>             //判断数组中的hash位置元素是否为TreeNode类型，如果是树节点类型，则调用树节点类型的put方法（putTreeVal）
+>             else if (p instanceof TreeNode) 
+>                 e = ((TreeNode<K,V>)p).putTreeVal(this, tab, hash, key, value); 
+>             //如果新插入的元素不等于数组中的hash位置元素且数组尾元素不是树节点
+>             else {
+>                 //循环遍历整个链表
+>                 for (int binCount = 0; ; ++binCount) {
+>                     //判断tab[hash]的下一个链表节点是否为null
+>                     if ((e = p.next) == null) {
+>                         //tab[hash]不存在下一个节点的话，将新元素插入到下一个节点
+>                         p.next = newNode(hash, key, value, null);                    
+>                         if (binCount >= TREEIFY_THRESHOLD - 1) // -1 for 1st    
+>                             //如果链表长度超过8，把链表转换为红黑树
+>                             treeifyBin(tab, hash);                    
+>                             break;                
+>                         }
+>                      //如果p的下一个节点和新插入的元素key，hash相同
+>                      if (e.hash == hash && ((k = e.key) == key || (key != null && key.equals(k))))                    
+>                          break;                
+>                      p = e;            
+>                 }        
+>             }        
+>             if (e != null) {// existing mapping for key            
+>                 V oldValue = e.value; 
+>                 //如果存在相同key的话，将新值赋给该key所属node的value，并返回旧value
+>                 if (!onlyIfAbsent || oldValue == null)               
+>                     e.value = value;           
+>                 afterNodeAccess(e);//回调，允许LinkedHashMap的后操作            
+>                 return oldValue;        
+>             }    
+>         }    
+>         ++modCount;    
+>         //判断是否需要扩容
+>         if (++size > threshold)        
+>             resize();    
+>         afterNodeInsertion(evict);    
+>         return null
+>     }
+>     ```
+
+4. `Collection` **Collection和Collections有什么区别？**
+
+> * Collection是集合工具的顶级接口
+> * Collections封装了操作集合的工具类
+
+5. `Map` **HashMap和HashTable有什么区别？**
+
+> * 存储：HashMap允许key和value为null，而HashTable不允许
+> * 线程安全：HashTable是线程安全的，而HashMap是非线程安全的
+> * 推荐使用：在HashTable的类煮熟可以看到，HashTable是保留类不建议使用，推荐在单线程环境下使用HashMap替代，如果需要多线程使用则用ConcurrentHashMap替代
+
+6. `Map` **如何决定使用HashMap和TreeMap？**
+
+> ##### TreeMap
+>
+> TreeMap的key值时要求实现`java.lang.Comparable`，所以迭代的时候TreeMap默认是安照Key值升序排序的；TreeMap的实现是基于红黑树结构，适用于按自然顺序或自定义顺序遍历键
+>
+> ##### HashMap
+>
+> HashMap的key值实现散列hashCode()，分布式散列的、均匀的，不支持排序；数据结构主要是桶（数组），链表或红黑树。适用于在Map中插入、删除和定位元素
+>
+> ##### 结论
+>
+> 如果你需要得到一个有序的结果时就应该使用TreeMap。除此之外，由于HashMap有更好的性能，所以大多不需要排序的时候我们会使用HashMap
+
+7. `Set` **HashSet的实现原理**
+
+> HashSet的底层是基于hashMap实现的，所以HashSet的值都存储在底层的HashMap的键上
+
+8. `array` `List` **如何实现数组和List之间的转换？**
+
+> * 数组转List
+>
+>   ```java
+>   List<String> l = Arrays.asList({"a","b","c"});
+>   ```
+>
+> * List转数组
+>
+>   ```java
+>   String[] arr = list.toArray(new String[list.size()]);
+>   ```
+
+9. `集合` `线程安全` **哪些集合时线程安全的？**
+
+> * vector
+> * hashTable
+> * concurrentHashMap
+> * CopyAndWriteArrayList
+
+10. `设计模式` `迭代器模式` **迭代器iterator是什么？**
+
+> ##### 迭代器模式
+>
+> 用于顺序访问集合对象的元素，无需知道集合对象的底层实现
+>
+> ##### Iterator
+>
+> 是可以遍历集合的对象，为各种容器提供了公共的操作接口，隔离对容器的遍历操作和底层实现，从而解耦。
+>
+> 缺点是增加新的集合类需要对应增加新的迭代器类，迭代器类与集合类成对增加。
+
+11. `线程安全` `ConcurrentHashMap` **ConcurrentHashMap的底层结构和实现原理？**
+
+> TODO
+>
+> https://blog.csdn.net/zengxiantao1994/article/details/89302583
+
+12. **为什么我们需要ConcurrentHashMap和CopyOnWriteArrayList？**
+
+> TODO
+
+### Java Exception
+
+------
+
+1. `关键字` `throw` `throws` **throw和throws的区别？**
+
+> ##### throw
+>
+> * 作用在方法内，表示抛出具体异常，由方法内的语句处理
+> * 具体向外抛出的动作，所以它抛出的是一个异常实体类。若执行了throw一定是抛出了某种异常。
+>
+> ##### throws
+>
+> * 作用在方法的声明上，表示如果抛出异常，则由该方法的调用者来进行异常处理
+> * 主要的声明这个方法会抛出某种类型的异常，让它的使用者知道捕获异常的类型
+> * 出现异常是一种可能性，但不一定会发生异常
+>
+> ##### 区别
+>
+> * 作用的位置不一样，throws作用于方法头，throw用于方法内部
+> * throws，表示一种可能性，不一定会抛出异常，可以一次性抛出多个异常；而throw只能一个，使用throw一定会抛出异常
+> * throws抛出异常时，它的上级（调用者）也要申明抛出异常或者捕获，不然编译会报错。而throw的话，可以不申明或不捕获，但编译器不会报错
+
+2. `关键字` `try-catch-finally` **try-catch-finally用法**
+
+> 是java提供进行异常处理的关键字
+>
+> ```java
+> try{
+>     // 代码执行区域
+> }catch(Exception e){
+>     // 异常处理区域
+> }finally{
+>     // 无论如何，最终都会执行的区域
+> }
+> ```
+>
+> ##### 执行顺序
+>
+> * 当代码中未出现异常时
+>
+>   try-finally
+>
+> * 当代码中出现异常时
+>
+>   try-catch-finally
+>
+> * 当try-finally同时有返回值时，返回值为谁的？
+>
+>   finally中的返回值会被返回
+
+3.  `关键字` `异常` **当catch中return了，finally中的代码还会执行吗？**
+
+> 会执行，在return前执行。
+>
+> demo->https://blog.csdn.net/qq_40180411/article/details/81428382
+
+4. `异常` **常见的异常类有哪些？**
+
+> * 空指针-NullPointerException 
+>
+>   * 对象调用方法时，如果对象没初始化会报
+>
+> * 数组越界-IndexOutOfBoundsException
+>
+>   * 将字符串分割成数组时，操作不当会报
+>
+> * 数据库异常-SQLException 
+>
+>   * 连接数据库时，出问题会报（我不太常见）
+>
+> * IO异常-IOException
+>
+>   * 通过url下载文件时，由于请求参数包含未被编码的汉字会报
+>   * 操作IO时会报
+>
+> * 参数不合法-IllegalArgumentException
+>
+>   * 方法接收的参数不合法
+>
+> * 运行时异常-RuntimeException
+>
+>   * 处理业务时，可自定义异常信息，在运行错误时抛出
+>
+> * 栈溢出-StackOverflowError
+>
+>   * 函数调用栈太深了，常见于递归方法。
+>
+>     场景：遍历有向带环图时，通过递归方式得出某一点开始的所有路径，因为带环原因，会出现无限递归，后来通过一个集合记录每次遍历过的两个点，遍历之前先去集合判断，避免重复
+>
+> * 内存溢出-OutOFMemory
+>
+>   * 线程池不停地创建线程，但是并为进行释放，导致线程对象过多导致内存溢出
+>   * 读取大的IO文件，文件大小查过JVM分配内存大小
+
+5. `异常链` **什么是异常链？**
+
+> 异常链是指在进行一个异常处理时抛出另一个异常，由此产生了一个异常链条，大多用于将受检查异常封装成为非受检查异常或者RuntimeException。特别注意如果你因为一个异常而决定抛出另一个新的异常时，一定要包含原有的异常，这样处理程序才可以通过getCause()和inItCause()方法来访问异常的最终根源
+
+6. `自定义异常` **java中如何编写自定义异常？**
+
+> 可以通过继承Exception类或者其任何子类来实现自己的自定义异常类，自定义异常类可以有自己的变量和方法来传递错误代码或者其他异常相关信息来处理异常。
+
+7. `异常处理` **关于异常处理的经验和心得？**
+
+> * 方法返回值尽量不要使用Null，这样可以避免很多空指针异常
+> * 避免在finally中使用return语句或者抛出异常，如果调用的其他代码可能抛出异常则应该捕获异常并进行处理，因为finally中的return不仅会覆盖try和catch内的返回值且还会掩盖try和catch内的异常，就像异常没发生一样
+> * 尽量不要在catch块中压制异常，便于排查错误
+> * 方法定义中throws尽量定义具体的异常列表
+> * 不要使用异常控制程序的流程，影响性能
+
+### Java Reflection
+
+------
+
+1. `反射` **什么是反射？你对反射的理解**
+
+> Java反射机制是运行状态中，对于任意一个实体类，都能够知道这个类的所有属性和方法。
+>
+> ##### 理解
+>
+> java程序可以在运行时才得知名称的class，获悉其完整构造，并生成其对象实体、或者对其field设值，或执行其methods,使java拥有动态语言的特性
+
+2. `序列化` **什么是java序列化？什么情况下需要序列化？**
+
+> * 序列化：将java对象转换成字节流的过程
+> * 反序列化：将字节流转换成java对象的过程
+>
+> 当java对象需要在网络上传输或者持久化存储到文件中时，就需要对java对象进行序列化处理
+>
+> ##### 序列化的实现
+>
+> 类实现Serializable接口，这个接口没有需要实现的方法。实现Serializable接口是为了告诉jvm这个类的对象可以被序列化
+>
+> * 某个类可以被序列化，则其子类也可以被序列化
+> * 声明为static和transient的成员变量，不能被序列化。static成员变量时描述类级别的属性，transient表示临时数据
+> * 反序列化读取序列化对象的顺序要保持一致
+
+3. `反射` **反射的日常应用**
+
+> * 框架常见的技术
+>
+>   * 结合SpringAOP和注解开发用户操作日志模块
+>
+>     注解存储接口要记录的操作和一些值，AOP通过反射获取被访问的接口及接口参数，然后进行日志插入操作
+>
+>   * Spring 注入属性
+>
+> * 动态代理
+>
+>   * 详见设计模式之动态代理
+
+4. `序列化` **什么情况下需要使用序列化？**
+
+> * 想把内存中的对象保存到一个文件中或者数据库中时
+> * 想用套接字在网络上传送对象的时候
+> * 想通过RMI（远程方法调用）传输对象的时候
+
+5. `反射` **反射的优缺点**
+
+> * 优点：可以动态执行，在运行期间根据业务功能动态执行方法，访问属性，最大限度发挥了java的灵活性
+> * 缺点：对性能有影响，反射需要在内存中解析字节码，这类操作总是慢于直接执行java代码
+
+6. `反射` **实现java反射的类有什么？**
+
+> * Class：类
+> * Field：字段
+> * Method：方法
+> * Constructor：构造方法
 
